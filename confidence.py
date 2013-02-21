@@ -149,7 +149,7 @@ def examineScores(tag, tags):
         print "Print tag '%s' is %.2f" % (k, v)
         
 
-def computeScores_old(inp_name, out_name):
+def computeScoresFromCSV(inp_name, out_name):
     """
     Takes csv file from DB export (Image Name Tags)
     For each image-tag application computes confidence scores (fuzzy match and ontology similarity)
@@ -178,7 +178,7 @@ def computeScores_old(inp_name, out_name):
                 outcsv.writerow([k, v, fuzzy_scores[k]])
             outcsv.writerow([])
 
-def computeScores_new(host, user, passwd, db_name, out_name):
+def computeScoresFromDB(host, user, passwd, db_name, out_name):
     """
     Connects to the MSQL server and queries the metadata games database
     For each image-tag application computes confidence scores (weight, fuzzy match and ontology similarity)
