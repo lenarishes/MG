@@ -166,13 +166,12 @@ def computeScores(inp_name, out_name):
                 continue
             im_name = row[0]
             outcsv.writerow(['Image '+im_name+':'])
-            tags = row[1].split(', ')
             # Spelling correction
-            tags = [SC.correct(w.strip("'")) for w in tags]
+            tags = [SC.correct(w.strip("'")) for w in row[1].split(', ')]
             fuzzy_scores = getMatchingScores(tags)
-            # before computing ontology scores, remove duplicate tags (might be after spelling correction)
-            sim_scores = getOntologyScores(list(set(tags)))
+            # before computing ontology scores, remove duplicate tags (might appear after spelling correction)
+            tags = list(set(tags))
+            sim_scores = getOntologyScores(tags)
             for k, v in sorted([(i, sim_scores[i]) for i in tags], key = lambda x: x[1], reverse= True):
                 outcsv.writerow([k, v, fuzzy_scores[k]])
             outcsv.writerow([])
-      
