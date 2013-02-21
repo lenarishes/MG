@@ -11,6 +11,8 @@ import re
 import csv
 import itertools
 from collections import defaultdict
+import MySQLdb as mdb
+import sys
 
 def fuzzyMatch(tag1, tag2):
     """
@@ -147,7 +149,7 @@ def examineScores(tag, tags):
         print "Print tag '%s' is %.2f" % (k, v)
         
 
-def computeScores(inp_name, out_name):
+def computeScores_old(inp_name, out_name):
     """
     Takes csv file from DB export (Image Name Tags)
     For each image-tag application computes confidence scores (fuzzy match and ontology similarity)
@@ -175,3 +177,54 @@ def computeScores(inp_name, out_name):
             for k, v in sorted([(i, sim_scores[i]) for i in tags], key = lambda x: x[1], reverse= True):
                 outcsv.writerow([k, v, fuzzy_scores[k]])
             outcsv.writerow([])
+
+def computeScores_new(host, user, passwd, db_name, out_name):
+    """
+    Connects to the MSQL server and queries the metadata games database
+    For each image-tag application computes confidence scores (weight, fuzzy match and ontology similarity)
+    Writes output into a file
+    Ex:  computeScores("tweet_data_tags.csv","out.csv")
+    @param db_name: string 
+    @param out_name: string 
+    """
+    SC = SpellChecker()
+    weights = defaultdict(int)
+    try:
+        con = mdb.connect(host, user, passwd, db_name);
+        cur = con.cursor()
+        # get all images from image table
+        cur.execute("SELECT id, name FROM image")
+        images = cur.fetchall()
+        with open(out_name, 'w') as out:
+            outcsv = csv.writer(out, delimiter = ' ')
+            outcsv.writerow(['Tag', 'WordNet Similarity', 'Fuzzy_match', 'Weight'])
+           
+           #select tags with weights for current image
+            for i in images:
+                cur.execute("SELECT tag.tag, SUM(tag_use.weight) FROM tag_use LEFT JOIN tag ON tag_use.tag_id = tag.id WHERE tag_use.image_id =" 
+                        + str(i[0]) +" GROUP BY tag.tag")
+                rows = cur.fetchall()
+                weights.update(itertools.chain(rows))
+                # Spelling correction
+                tags = [SC.correct(t) for t in weights.keys()]
+                im_name = i[1]
+                outcsv.writerow(['Image '+im_name+':'])
+                fuzzy_scores = getMatchingScores(tags)
+                # before computing ontology scores, remove duplicate tags (might appear after spelling correction)
+                tags = list(set(tags))
+                sim_scores = getOntologyScores(tags)
+                for k, v in sorted([(i, sim_scores[i]) for i in tags], key = lambda x: x[1], reverse= True):
+                    outcsv.writerow([k, v, fuzzy_scores[k], weights[k]])
+                outcsv.writerow([])
+                weights.clear()
+    
+    except mdb.Error, e:
+        print "Error %d: %s" % (e.args[0],e.args[1])
+        sys.exit(1)
+    #close connection
+    finally:    
+        if con:    
+            con.close()
+
+
+    
